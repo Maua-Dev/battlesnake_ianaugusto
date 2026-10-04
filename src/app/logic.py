@@ -69,8 +69,12 @@ def get_move(state: GameState) -> MoveResponse:
     if my_head.y - 1 < 0:
         is_move_safe["down"] = False
 
+    rabo_livre = state.you.health < 100
+
     my_body = state.you.body
-    for segment in my_body:
+    for i, segment in enumerate(my_body):
+        if rabo_livre and i == len(my_body) - 1:
+            continue
         if segment.x == my_head.x + 1 and segment.y == my_head.y:
             is_move_safe["right"] = False
         if segment.x == my_head.x - 1 and segment.y == my_head.y:
@@ -80,7 +84,6 @@ def get_move(state: GameState) -> MoveResponse:
         if segment.x == my_head.x and segment.y == my_head.y - 1:
             is_move_safe["down"] = False
 
-    # --- SISTEMA DE BLOCOS E FRONTEIRAS (ESTRUTURA JOGO DA VELHA) ---
     estado = {"emergencia": False}
 
     blocos = {
@@ -94,65 +97,65 @@ def get_move(state: GameState) -> MoveResponse:
         },
         "b2": {
             "coords": [
-                {'x': 3, 'y': 10}, {'x': 4, 'y': 10}, {'x': 5, 'y': 10},
-                {'x': 3, 'y': 9},  {'x': 4, 'y': 9},  {'x': 5, 'y': 9},
-                {'x': 3, 'y': 8},  {'x': 4, 'y': 8},  {'x': 5, 'y': 8}
+                {'x': 4, 'y': 10}, {'x': 5, 'y': 10}, {'x': 6, 'y': 10},
+                {'x': 4, 'y': 9},  {'x': 5, 'y': 9},  {'x': 6, 'y': 9},
+                {'x': 4, 'y': 8},  {'x': 5, 'y': 8},  {'x': 6, 'y': 8}
             ],
             "pontos": 0
         },
         "b3": {
             "coords": [
-                {'x': 6, 'y': 10}, {'x': 7, 'y': 10}, {'x': 8, 'y': 10},
-                {'x': 6, 'y': 9},  {'x': 7, 'y': 9},  {'x': 8, 'y': 9},
-                {'x': 6, 'y': 8},  {'x': 7, 'y': 8},  {'x': 8, 'y': 8}
+                {'x': 8, 'y': 10}, {'x': 9, 'y': 10}, {'x': 10, 'y': 10},
+                {'x': 8, 'y': 9},  {'x': 9, 'y': 9},  {'x': 10, 'y': 9},
+                {'x': 8, 'y': 8},  {'x': 9, 'y': 8},  {'x': 10, 'y': 8}
             ],
             "pontos": 0
         },
         "b4": {
             "coords": [
-                {'x': 0, 'y': 7}, {'x': 1, 'y': 7}, {'x': 2, 'y': 7},
                 {'x': 0, 'y': 6}, {'x': 1, 'y': 6}, {'x': 2, 'y': 6},
-                {'x': 0, 'y': 5}, {'x': 1, 'y': 5}, {'x': 2, 'y': 5}
+                {'x': 0, 'y': 5}, {'x': 1, 'y': 5}, {'x': 2, 'y': 5},
+                {'x': 0, 'y': 4}, {'x': 1, 'y': 4}, {'x': 2, 'y': 4}
             ],
             "pontos": 0
         },
         "b5": {
             "coords": [
-                {'x': 3, 'y': 7}, {'x': 4, 'y': 7}, {'x': 5, 'y': 7},
-                {'x': 3, 'y': 6}, {'x': 4, 'y': 6}, {'x': 5, 'y': 6},
-                {'x': 3, 'y': 5}, {'x': 4, 'y': 5}, {'x': 5, 'y': 5}
+                {'x': 4, 'y': 6}, {'x': 5, 'y': 6}, {'x': 6, 'y': 6},
+                {'x': 4, 'y': 5}, {'x': 5, 'y': 5}, {'x': 6, 'y': 5},
+                {'x': 4, 'y': 4}, {'x': 5, 'y': 4}, {'x': 6, 'y': 4}
             ],
             "pontos": 0
         },
         "b6": {
             "coords": [
-                {'x': 6, 'y': 7}, {'x': 7, 'y': 7}, {'x': 8, 'y': 7},
-                {'x': 6, 'y': 6}, {'x': 7, 'y': 6}, {'x': 8, 'y': 6},
-                {'x': 6, 'y': 5}, {'x': 7, 'y': 5}, {'x': 8, 'y': 5}
+                {'x': 8, 'y': 6}, {'x': 9, 'y': 6}, {'x': 10, 'y': 6},
+                {'x': 8, 'y': 5}, {'x': 9, 'y': 5}, {'x': 10, 'y': 5},
+                {'x': 8, 'y': 4}, {'x': 9, 'y': 4}, {'x': 10, 'y': 4}
             ],
             "pontos": 0
         },
         "b7": {
             "coords": [
-                {'x': 0, 'y': 4}, {'x': 1, 'y': 4}, {'x': 2, 'y': 4},
-                {'x': 0, 'y': 3}, {'x': 1, 'y': 3}, {'x': 2, 'y': 3},
-                {'x': 0, 'y': 2}, {'x': 1, 'y': 2}, {'x': 2, 'y': 2}
+                {'x': 0, 'y': 2}, {'x': 1, 'y': 2}, {'x': 2, 'y': 2},
+                {'x': 0, 'y': 1}, {'x': 1, 'y': 1}, {'x': 2, 'y': 1},
+                {'x': 0, 'y': 0}, {'x': 1, 'y': 0}, {'x': 2, 'y': 0}
             ],
             "pontos": 0
         },
         "b8": {
             "coords": [
-                {'x': 3, 'y': 4}, {'x': 4, 'y': 4}, {'x': 5, 'y': 4},
-                {'x': 3, 'y': 3}, {'x': 4, 'y': 3}, {'x': 5, 'y': 3},
-                {'x': 3, 'y': 2}, {'x': 4, 'y': 2}, {'x': 5, 'y': 2}
+                {'x': 4, 'y': 2}, {'x': 5, 'y': 2}, {'x': 6, 'y': 2},
+                {'x': 4, 'y': 1}, {'x': 5, 'y': 1}, {'x': 6, 'y': 1},
+                {'x': 4, 'y': 0}, {'x': 5, 'y': 0}, {'x': 6, 'y': 0}
             ],
             "pontos": 0
         },
         "b9": {
             "coords": [
-                {'x': 6, 'y': 4}, {'x': 7, 'y': 4}, {'x': 8, 'y': 4},
-                {'x': 6, 'y': 3}, {'x': 7, 'y': 3}, {'x': 8, 'y': 3},
-                {'x': 6, 'y': 2}, {'x': 7, 'y': 2}, {'x': 8, 'y': 2}
+                {'x': 8, 'y': 2}, {'x': 9, 'y': 2}, {'x': 10, 'y': 2},
+                {'x': 8, 'y': 1}, {'x': 9, 'y': 1}, {'x': 10, 'y': 1},
+                {'x': 8, 'y': 0}, {'x': 9, 'y': 0}, {'x': 10, 'y': 0}
             ],
             "pontos": 0
         }
@@ -171,28 +174,34 @@ def get_move(state: GameState) -> MoveResponse:
     }
 
     fronteiras = {
-        "b1_b2": {"coords": [{'x': 2, 'y': 10}, {'x': 2, 'y': 9}, {'x': 2, 'y': 8}]},
+        "b1_b2": {"coords": [{'x': 3, 'y': 10}, {'x': 3, 'y': 9}, {'x': 3, 'y': 8}]},
         "b1_b4": {"coords": [{'x': 0, 'y': 7}, {'x': 1, 'y': 7}, {'x': 2, 'y': 7}]},
-        "b2_b3": {"coords": [{'x': 5, 'y': 10}, {'x': 5, 'y': 9}, {'x': 5, 'y': 8}]},
-        "b2_b5": {"coords": [{'x': 3, 'y': 7}, {'x': 4, 'y': 7}, {'x': 5, 'y': 7}]},
-        "b3_b6": {"coords": [{'x': 6, 'y': 7}, {'x': 7, 'y': 7}, {'x': 8, 'y': 7}]},
-        "b4_b5": {"coords": [{'x': 2, 'y': 7}, {'x': 2, 'y': 6}, {'x': 2, 'y': 5}]},
-        "b4_b7": {"coords": [{'x': 0, 'y': 4}, {'x': 1, 'y': 4}, {'x': 2, 'y': 4}]},
-        "b5_b6": {"coords": [{'x': 5, 'y': 7}, {'x': 5, 'y': 6}, {'x': 5, 'y': 5}]},
-        "b5_b8": {"coords": [{'x': 3, 'y': 4}, {'x': 4, 'y': 4}, {'x': 5, 'y': 4}]},
-        "b6_b9": {"coords": [{'x': 6, 'y': 4}, {'x': 7, 'y': 4}, {'x': 8, 'y': 4}]},
-        "b7_b8": {"coords": [{'x': 2, 'y': 4}, {'x': 2, 'y': 3}, {'x': 2, 'y': 2}]},
-        "b8_b9": {"coords": [{'x': 5, 'y': 4}, {'x': 5, 'y': 3}, {'x': 5, 'y': 2}]}
+        "b2_b3": {"coords": [{'x': 7, 'y': 10}, {'x': 7, 'y': 9}, {'x': 7, 'y': 8}]},
+        "b2_b5": {"coords": [{'x': 4, 'y': 7}, {'x': 5, 'y': 7}, {'x': 6, 'y': 7}]},
+        "b3_b6": {"coords": [{'x': 8, 'y': 7}, {'x': 9, 'y': 7}, {'x': 10, 'y': 7}]},
+        "b4_b5": {"coords": [{'x': 3, 'y': 6}, {'x': 3, 'y': 5}, {'x': 3, 'y': 4}]},
+        "b4_b7": {"coords": [{'x': 0, 'y': 3}, {'x': 1, 'y': 3}, {'x': 2, 'y': 3}]},
+        "b5_b6": {"coords": [{'x': 7, 'y': 6}, {'x': 7, 'y': 5}, {'x': 7, 'y': 4}]},
+        "b5_b8": {"coords": [{'x': 4, 'y': 3}, {'x': 5, 'y': 3}, {'x': 6, 'y': 3}]},
+        "b6_b9": {"coords": [{'x': 8, 'y': 3}, {'x': 9, 'y': 3}, {'x': 10, 'y': 3}]},
+        "b7_b8": {"coords": [{'x': 3, 'y': 2}, {'x': 3, 'y': 1}, {'x': 3, 'y': 0}]},
+        "b8_b9": {"coords": [{'x': 7, 'y': 2}, {'x': 7, 'y': 1}, {'x': 7, 'y': 0}]}
     }
 
     food_list = state.board.food
+
+    peso_comida = 5
+    if state.you.health < 50:
+        peso_comida = 30
+
+    desespero = state.you.health < 30
 
     def ponturaComida():
         for comida in food_list:
             c_dict = {'x': comida.x, 'y': comida.y}
             for dados in blocos.values():
                 if c_dict in dados["coords"]:
-                    dados["pontos"] += 3
+                    dados["pontos"] += peso_comida
 
     def acharVizinho():
         ondeEstou = None
@@ -225,6 +234,8 @@ def get_move(state: GameState) -> MoveResponse:
         }
         inimigos = state.board.snakes
         for inimigo in inimigos:
+            if inimigo.id == state.you.id:
+                continue
             for parte in inimigo.body:
                 for direcao, proxima_pos in movimentos_possiveis.items():
                     if parte.x == proxima_pos['x'] and parte.y == proxima_pos['y']:
@@ -253,7 +264,6 @@ def get_move(state: GameState) -> MoveResponse:
                 blocoAtual = nome_bloco
                 break
 
-        # Blinda caso a cobra esteja navegando pelas linhas do jogo da velha (corredores/fronteiras)
         if blocoAtual and melhor_bloco_nome:
             for locais in fronteiras:
                 if locais == blocoAtual + '_' + melhor_bloco_nome or locais == melhor_bloco_nome + '_' + blocoAtual:
@@ -306,7 +316,8 @@ def get_move(state: GameState) -> MoveResponse:
         estado["emergencia"] = False
 
     def modoDefensivo():
-        if estado["emergencia"]:
+        # só gira em círculo se o corpo tiver pelo menos 4 segmentos
+        if estado["emergencia"] and len(state.you.body) >= 4:
             rabo = state.you.body[-1]
             
             if is_move_safe["right"] and my_head.x < rabo.x: return "right"
@@ -320,14 +331,34 @@ def get_move(state: GameState) -> MoveResponse:
                     
         return None
 
-    # EXECUTANDO AS FUNÇÕES DO TURNO
+    def deuRuimKKK():
+        distancia = 9999
+        alvo = None
+
+        if desespero:
+            for comida in food_list:
+                d = abs(comida.x - my_head.x) + abs(comida.y - my_head.y)
+                if d < distancia:
+                    distancia = d
+                    alvo = comida
+
+        if alvo:
+            if is_move_safe["right"] and my_head.x < alvo.x: return "right"
+            if is_move_safe["left"] and my_head.x > alvo.x: return "left"
+            if is_move_safe["up"] and my_head.y < alvo.y: return "up"
+            if is_move_safe["down"] and my_head.y > alvo.y: return "down"
+
+        return None
+
     ponturaComida()
     acharVizinho()
     calcularInimigos()
     evitarInimigos()
     inimigoNoMeuBloco()
 
-    direcao_alvo = modoDefensivo()
+    direcao_alvo = deuRuimKKK()
+    if not direcao_alvo:
+        direcao_alvo = modoDefensivo()
     if not direcao_alvo:
         direcao_alvo = acharMelhorBloco()
 
