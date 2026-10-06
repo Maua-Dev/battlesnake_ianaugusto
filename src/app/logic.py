@@ -409,7 +409,36 @@ def get_move(state: GameState) -> MoveResponse:
                     return direcao
                     
         return None
+    def evitarColisaoFrente():
+        bateu = []
+        for numero in range(1, 4):
+            movimentosPossiveis = {
+                "up": {'x': my_head.x, 'y': my_head.y + numero},
+                "down": {'x': my_head.x, 'y': my_head.y - numero},
+                "left": {'x': my_head.x - numero, 'y': my_head.y},
+                "right": {'x': my_head.x + numero, 'y': my_head.y}
+            }
+            for direcao, pos in movimentosPossiveis.items():
+                if pos['x'] > 10 or pos['x'] < 0 or pos['y'] > 10 or pos['y'] < 0:
+                    if direcao not in bateu:
+                        bateu.append(direcao)
+                for cobra in state.board.snakes:
+                    for parte in cobra.body:
+                        if parte.x == pos['x'] and parte.y == pos['y']:
+                            if direcao not in bateu:
+                                bateu.append(direcao)
 
+        # só bloqueia se sobrar pelo menos uma saída
+        sobram = []
+        for direcao, segura in is_move_safe.items():
+            if segura and direcao not in bateu:
+                sobram.append(direcao)
+        if len(sobram) > 0:
+            for direcao in bateu:
+                is_move_safe[direcao] = False
+
+
+            numero+=1
     def deuRuimKKK():
         distancia = 9999
         alvo = None
