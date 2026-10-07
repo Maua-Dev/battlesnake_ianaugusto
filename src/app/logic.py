@@ -61,7 +61,7 @@ def get_move(state: GameState) -> MoveResponse:
             break
             
     meuTamanho = len(state.you.body)
-    tamanhoInimigo = len(inimigo.body) if inimigo else 0
+    tamanhoInimigo = len(inimigo.body) if inimigo is not None else 0
     estouPerdendo = meuTamanho <= tamanhoInimigo
 
     my_body = state.you.body
@@ -117,14 +117,18 @@ def get_move(state: GameState) -> MoveResponse:
 
     pesoComida = 90 if estouPerdendo else 15
 
-    def temEspacoSeguro(start_x, start_y, minimo=4):
+    def temEspacoSeguro(start_x, start_y, minimo=meuTamanho):
         visitados = set()
         fila = [{'x': start_x, 'y': start_y}]
         
         obstaculos = set()
-        for p in state.you.body[:-1]: 
+        
+        limite_meu_corpo = None if raboFixo else -1
+        for p in state.you.body[:limite_meu_corpo]: 
             obstaculos.add((p.x, p.y))
+            
         for cobra in state.board.snakes:
+            if cobra.id == state.you.id: continue
             for p in cobra.body[:-1]:
                 obstaculos.add((p.x, p.y))
                 
@@ -158,7 +162,7 @@ def get_move(state: GameState) -> MoveResponse:
                     dados["pontos"] += pontos
 
     def calcularInimigos():
-        if inimigo:
+        if inimigo is not None:
             for parte in inimigo.body:
                 p_dict = {'x': parte.x, 'y': parte.y}
                 for locais in blocos.values():
@@ -183,7 +187,7 @@ def get_move(state: GameState) -> MoveResponse:
                     if parte.x == proximaPos['x'] and parte.y == proximaPos['y']:
                         is_move_safe[direcao] = False
 
-        if estouPerdendo and inimigo:
+        if estouPerdendo and inimigo is not None:
             perigoCabeca = []
             cab = inimigo.body[0]
             for direcao, proximaPos in movimentosPossiveis.items():
@@ -196,7 +200,7 @@ def get_move(state: GameState) -> MoveResponse:
                     is_move_safe[d] = False
 
     def evitarBordas():
-        if inimigo:
+        if inimigo is not None:
             dist = abs(my_head.x - inimigo.body[0].x) + abs(my_head.y - inimigo.body[0].y)
             if dist <= 3:
                 return
@@ -226,8 +230,31 @@ def get_move(state: GameState) -> MoveResponse:
                 if not temMaca:
                     is_move_safe[direcaoBorda] = False
 
+    def kamikasi():
+        if inimigo is not None and meuTamanho >= tamanhoInimigo + 2:
+            meu_bloco = None
+            inimigo_bloco = None
+            
+            head_dict = {'x': my_head.x, 'y': my_head.y}
+            cabeca_inimigo_dict = {'x': inimigo.body[0].x, 'y': inimigo.body[0].y}
+            
+            for nomeBloco, local in blocos.items():     
+                if head_dict in local['coords']:
+                    meu_bloco = nomeBloco
+                if cabeca_inimigo_dict in local['coords']:
+                    inimigo_bloco = nomeBloco
+                    
+            if meu_bloco and meu_bloco == inimigo_bloco:
+                alvo = inimigo.body[0]
+                if is_move_safe["right"] and my_head.x < alvo.x and temEspacoSeguro(my_head.x + 1, my_head.y): return "right"
+                if is_move_safe["left"] and my_head.x > alvo.x and temEspacoSeguro(my_head.x - 1, my_head.y): return "left"
+                if is_move_safe["up"] and my_head.y < alvo.y and temEspacoSeguro(my_head.x, my_head.y + 1): return "up"
+                if is_move_safe["down"] and my_head.y > alvo.y and temEspacoSeguro(my_head.x, my_head.y - 1): return "down"
+                
+        return None
+
     def fecharInimigo():
-        if not estouPerdendo and inimigo:
+        if not estouPerdendo and inimigo is not None:
             cabecaInimigo = inimigo.body[0]
             pescocoInimigo = inimigo.body[1] if len(inimigo.body) > 1 else cabecaInimigo
                 
@@ -312,7 +339,10 @@ def get_move(state: GameState) -> MoveResponse:
     evitarInimigos()
     evitarBordas()      
 
-    direcao_alvo = fecharInimigo()
+    direcao_alvo = kamikasi()
+    
+    if not direcao_alvo:
+        direcao_alvo = fecharInimigo()
     
     if not direcao_alvo:
         direcao_alvo = acharMelhorBloco()
