@@ -15,7 +15,6 @@ from .models import GameState, MoveResponse
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-
 def info() -> dict:
     logger.info("INFO")
     return {
@@ -27,17 +26,13 @@ def info() -> dict:
         "version": "1.0.0",
     }
 
-
 def start(state: GameState) -> None:
     logger.info("JOGO COMEÇOU (partida %s)", state.game.id)
-
 
 def end(state: GameState) -> None:
     logger.info("FIM DE JOGO após %d turnos", state.turn)
 
-
 def get_move(state: GameState) -> MoveResponse:
-    # embaralha a ordem das direções a cada turno, para nenhuma ter prioridade fixa
     direcoes = ["up", "down", "left", "right"]
     random.shuffle(direcoes)
     is_move_safe: dict[str, bool] = {d: True for d in direcoes}
@@ -46,131 +41,63 @@ def get_move(state: GameState) -> MoveResponse:
     my_neck = state.you.body[1] if len(state.you.body) >= 2 else None
 
     if my_neck is not None:
-        if my_neck.x < my_head.x:
-            is_move_safe["left"] = False
-        elif my_neck.x > my_head.x:
-            is_move_safe["right"] = False
-        elif my_neck.y < my_head.y:
-            is_move_safe["down"] = False
-        elif my_neck.y > my_head.y:
-            is_move_safe["up"] = False
+        if my_neck.x < my_head.x: is_move_safe["left"] = False
+        elif my_neck.x > my_head.x: is_move_safe["right"] = False
+        elif my_neck.y < my_head.y: is_move_safe["down"] = False
+        elif my_neck.y > my_head.y: is_move_safe["up"] = False
 
     board_width = state.board.width
     board_height = state.board.height
 
-    if my_head.x + 1 >= board_width:
-        is_move_safe["right"] = False
-    if my_head.x - 1 < 0:
-        is_move_safe["left"] = False
-    if my_head.y + 1 >= board_height:
-        is_move_safe["up"] = False
-    if my_head.y - 1 < 0:
-        is_move_safe["down"] = False
+    if my_head.x + 1 >= board_width: is_move_safe["right"] = False
+    if my_head.x - 1 < 0: is_move_safe["left"] = False
+    if my_head.y + 1 >= board_height: is_move_safe["up"] = False
+    if my_head.y - 1 < 0: is_move_safe["down"] = False
 
-    # Se eu não acabei de comer, o rabo sai do lugar no próximo turno, então entrar nele é seguro
-    raboLivre = state.you.health < 100
+    inimigo = None
+    for cobra in state.board.snakes:
+        if cobra.id != state.you.id:
+            inimigo = cobra
+            break
+            
+    meuTamanho = len(state.you.body)
+    tamanhoInimigo = len(inimigo.body) if inimigo else 0
+    estouPerdendo = meuTamanho <= tamanhoInimigo
 
     my_body = state.you.body
-    for i, segment in enumerate(my_body):
-        if raboLivre and i == len(my_body) - 1:
-            continue
-        if segment.x == my_head.x + 1 and segment.y == my_head.y:
-            is_move_safe["right"] = False
-        if segment.x == my_head.x - 1 and segment.y == my_head.y:
-            is_move_safe["left"] = False
-        if segment.x == my_head.x and segment.y == my_head.y + 1:
-            is_move_safe["up"] = False
-        if segment.x == my_head.x and segment.y == my_head.y - 1:
-            is_move_safe["down"] = False
+    raboFixo = (len(my_body) >= 2 and my_body[-1].x == my_body[-2].x and my_body[-1].y == my_body[-2].y)
 
-    # --- SISTEMA DE BLOCOS E FRONTEIRAS (ESTRUTURA JOGO DA VELHA) ---
-    estado = {"emergencia": False}
+    for i, segment in enumerate(my_body):
+        if not raboFixo and i == len(my_body) - 1:
+            continue
+        if segment.x == my_head.x + 1 and segment.y == my_head.y: is_move_safe["right"] = False
+        if segment.x == my_head.x - 1 and segment.y == my_head.y: is_move_safe["left"] = False
+        if segment.x == my_head.x and segment.y == my_head.y + 1: is_move_safe["up"] = False
+        if segment.x == my_head.x and segment.y == my_head.y - 1: is_move_safe["down"] = False
+
+    listaComida = []
+    for comida in state.board.food:
+        naBorda = (comida.x == 0 or comida.x == board_width - 1 or comida.y == 0 or comida.y == board_height - 1)
+        if naBorda and not estouPerdendo:
+            continue
+        listaComida.append(comida)
 
     blocos = {
-        "b1": {
-            "coords": [
-                {'x': 0, 'y': 10}, {'x': 1, 'y': 10}, {'x': 2, 'y': 10},
-                {'x': 0, 'y': 9},  {'x': 1, 'y': 9},  {'x': 2, 'y': 9},
-                {'x': 0, 'y': 8},  {'x': 1, 'y': 8},  {'x': 2, 'y': 8}
-            ],
-            "pontos": 0
-        },
-        "b2": {
-            "coords": [
-                {'x': 4, 'y': 10}, {'x': 5, 'y': 10}, {'x': 6, 'y': 10},
-                {'x': 4, 'y': 9},  {'x': 5, 'y': 9},  {'x': 6, 'y': 9},
-                {'x': 4, 'y': 8},  {'x': 5, 'y': 8},  {'x': 6, 'y': 8}
-            ],
-            "pontos": 0
-        },
-        "b3": {
-            "coords": [
-                {'x': 8, 'y': 10}, {'x': 9, 'y': 10}, {'x': 10, 'y': 10},
-                {'x': 8, 'y': 9},  {'x': 9, 'y': 9},  {'x': 10, 'y': 9},
-                {'x': 8, 'y': 8},  {'x': 9, 'y': 8},  {'x': 10, 'y': 8}
-            ],
-            "pontos": 0
-        },
-        "b4": {
-            "coords": [
-                {'x': 0, 'y': 6}, {'x': 1, 'y': 6}, {'x': 2, 'y': 6},
-                {'x': 0, 'y': 5}, {'x': 1, 'y': 5}, {'x': 2, 'y': 5},
-                {'x': 0, 'y': 4}, {'x': 1, 'y': 4}, {'x': 2, 'y': 4}
-            ],
-            "pontos": 0
-        },
-        "b5": {
-            "coords": [
-                {'x': 4, 'y': 6}, {'x': 5, 'y': 6}, {'x': 6, 'y': 6},
-                {'x': 4, 'y': 5}, {'x': 5, 'y': 5}, {'x': 6, 'y': 5},
-                {'x': 4, 'y': 4}, {'x': 5, 'y': 4}, {'x': 6, 'y': 4}
-            ],
-            "pontos": 0
-        },
-        "b6": {
-            "coords": [
-                {'x': 8, 'y': 6}, {'x': 9, 'y': 6}, {'x': 10, 'y': 6},
-                {'x': 8, 'y': 5}, {'x': 9, 'y': 5}, {'x': 10, 'y': 5},
-                {'x': 8, 'y': 4}, {'x': 9, 'y': 4}, {'x': 10, 'y': 4}
-            ],
-            "pontos": 0
-        },
-        "b7": {
-            "coords": [
-                {'x': 0, 'y': 2}, {'x': 1, 'y': 2}, {'x': 2, 'y': 2},
-                {'x': 0, 'y': 1}, {'x': 1, 'y': 1}, {'x': 2, 'y': 1},
-                {'x': 0, 'y': 0}, {'x': 1, 'y': 0}, {'x': 2, 'y': 0}
-            ],
-            "pontos": 0
-        },
-        "b8": {
-            "coords": [
-                {'x': 4, 'y': 2}, {'x': 5, 'y': 2}, {'x': 6, 'y': 2},
-                {'x': 4, 'y': 1}, {'x': 5, 'y': 1}, {'x': 6, 'y': 1},
-                {'x': 4, 'y': 0}, {'x': 5, 'y': 0}, {'x': 6, 'y': 0}
-            ],
-            "pontos": 0
-        },
-        "b9": {
-            "coords": [
-                {'x': 8, 'y': 2}, {'x': 9, 'y': 2}, {'x': 10, 'y': 2},
-                {'x': 8, 'y': 1}, {'x': 9, 'y': 1}, {'x': 10, 'y': 1},
-                {'x': 8, 'y': 0}, {'x': 9, 'y': 0}, {'x': 10, 'y': 0}
-            ],
-            "pontos": 0
-        }
+        "b1": {"coords": [{'x': 0, 'y': 10}, {'x': 1, 'y': 10}, {'x': 2, 'y': 10}, {'x': 0, 'y': 9},  {'x': 1, 'y': 9},  {'x': 2, 'y': 9}, {'x': 0, 'y': 8},  {'x': 1, 'y': 8},  {'x': 2, 'y': 8}], "pontos": 0},
+        "b2": {"coords": [{'x': 4, 'y': 10}, {'x': 5, 'y': 10}, {'x': 6, 'y': 10}, {'x': 4, 'y': 9},  {'x': 5, 'y': 9},  {'x': 6, 'y': 9}, {'x': 4, 'y': 8},  {'x': 5, 'y': 8},  {'x': 6, 'y': 8}], "pontos": 0},
+        "b3": {"coords": [{'x': 8, 'y': 10}, {'x': 9, 'y': 10}, {'x': 10, 'y': 10},{'x': 8, 'y': 9},  {'x': 9, 'y': 9},  {'x': 10, 'y': 9},{'x': 8, 'y': 8},  {'x': 9, 'y': 8},  {'x': 10, 'y': 8}], "pontos": 0},
+        "b4": {"coords": [{'x': 0, 'y': 6}, {'x': 1, 'y': 6}, {'x': 2, 'y': 6},   {'x': 0, 'y': 5}, {'x': 1, 'y': 5}, {'x': 2, 'y': 5},   {'x': 0, 'y': 4}, {'x': 1, 'y': 4}, {'x': 2, 'y': 4}], "pontos": 0},
+        "b5": {"coords": [{'x': 4, 'y': 6}, {'x': 5, 'y': 6}, {'x': 6, 'y': 6},   {'x': 4, 'y': 5}, {'x': 5, 'y': 5}, {'x': 6, 'y': 5},   {'x': 4, 'y': 4}, {'x': 5, 'y': 4}, {'x': 6, 'y': 4}], "pontos": 0},
+        "b6": {"coords": [{'x': 8, 'y': 6}, {'x': 9, 'y': 6}, {'x': 10, 'y': 6},  {'x': 8, 'y': 5}, {'x': 9, 'y': 5}, {'x': 10, 'y': 5},  {'x': 8, 'y': 4}, {'x': 9, 'y': 4}, {'x': 10, 'y': 4}], "pontos": 0},
+        "b7": {"coords": [{'x': 0, 'y': 2}, {'x': 1, 'y': 2}, {'x': 2, 'y': 2},   {'x': 0, 'y': 1}, {'x': 1, 'y': 1}, {'x': 2, 'y': 1},   {'x': 0, 'y': 0}, {'x': 1, 'y': 0}, {'x': 2, 'y': 0}], "pontos": 0},
+        "b8": {"coords": [{'x': 4, 'y': 2}, {'x': 5, 'y': 2}, {'x': 6, 'y': 2},   {'x': 4, 'y': 1}, {'x': 5, 'y': 1}, {'x': 6, 'y': 1},   {'x': 4, 'y': 0}, {'x': 5, 'y': 0}, {'x': 6, 'y': 0}], "pontos": 0},
+        "b9": {"coords": [{'x': 8, 'y': 2}, {'x': 9, 'y': 2}, {'x': 10, 'y': 2},  {'x': 8, 'y': 1}, {'x': 9, 'y': 1}, {'x': 10, 'y': 1},  {'x': 8, 'y': 0}, {'x': 9, 'y': 0}, {'x': 10, 'y': 0}], "pontos": 0}
     }
 
     vizinhosBlocos = {
-        "b1": ["b2", "b4"],
-        "b2": ["b1", "b3", "b5"],
-        "b3": ["b2", "b6"],
-        "b4": ["b1", "b5", "b7"],
-        "b5": ["b2", "b4", "b6", "b8"],
-        "b6": ["b3", "b5", "b9"],
-        "b7": ["b4", "b8"],
-        "b8": ["b7", "b5", "b9"],
-        "b9": ["b6", "b8"]
+        "b1": ["b2", "b4"], "b2": ["b1", "b3", "b5"], "b3": ["b2", "b6"],
+        "b4": ["b1", "b5", "b7"], "b5": ["b2", "b4", "b6", "b8"], "b6": ["b3", "b5", "b9"],
+        "b7": ["b4", "b8"], "b8": ["b7", "b5", "b9"], "b9": ["b6", "b8"]
     }
 
     fronteiras = {
@@ -188,67 +115,58 @@ def get_move(state: GameState) -> MoveResponse:
         "b8_b9": {"coords": [{'x': 7, 'y': 2}, {'x': 7, 'y': 1}, {'x': 7, 'y': 0}]}
     }
 
-    listaComida = state.board.food
+    pesoComida = 90 if estouPerdendo else 15
 
-    # --- LÓGICA DO PESO DA COMIDA ---
-    pesoComida = 15
-    if state.you.health < 50:
-        pesoComida = 30
-
-    tamanhoInimigos = 0
-    qtdInimigos = 0
-    meuTamanho = len(state.you.body)
-
-    for inimigo in state.board.snakes:
-        if inimigo.id != state.you.id:
-            tamanhoInimigos += len(inimigo.body)
-            qtdInimigos += 1
-
-    if qtdInimigos > 0:
-        mediaTamanho = tamanhoInimigos / qtdInimigos
-        if meuTamanho < mediaTamanho:
-            pesoComida = 90
-
-    desespero = state.you.health < 30
+    def temEspacoSeguro(start_x, start_y, minimo=4):
+        visitados = set()
+        fila = [{'x': start_x, 'y': start_y}]
+        
+        obstaculos = set()
+        for p in state.you.body[:-1]: 
+            obstaculos.add((p.x, p.y))
+        for cobra in state.board.snakes:
+            for p in cobra.body[:-1]:
+                obstaculos.add((p.x, p.y))
+                
+        while fila:
+            atual = fila.pop(0)
+            pos_tuple = (atual['x'], atual['y'])
+            if pos_tuple in visitados: continue
+            visitados.add(pos_tuple)
+            
+            if len(visitados) >= minimo:
+                return True
+                
+            for dx, dy in [(0,1), (0,-1), (1,0), (-1,0)]:
+                nx, ny = atual['x'] + dx, atual['y'] + dy
+                if 0 <= nx < board_width and 0 <= ny < board_height:
+                    if (nx, ny) not in obstaculos and (nx, ny) not in visitados:
+                        fila.append({'x': nx, 'y': ny})
+                        
+        return len(visitados) >= minimo
 
     def pontuarComida():
         ordenadas = sorted(listaComida, key=lambda c: abs(c.x - my_head.x) + abs(c.y - my_head.y))
         for posicao, comida in enumerate(ordenadas):
-            if posicao == 0:
-                pontos = pesoComida * 3
-            elif posicao == 1:
-                pontos = pesoComida * 2
-            else:
-                pontos = pesoComida
+            if posicao == 0: pontos = pesoComida * 3
+            elif posicao == 1: pontos = pesoComida * 2
+            else: pontos = pesoComida
             
             c_dict = {'x': comida.x, 'y': comida.y}
             for dados in blocos.values():
                 if c_dict in dados["coords"]:
                     dados["pontos"] += pontos
 
-    def acharVizinho():
-        ondeEstou = None
-        head_dict = {'x': my_head.x, 'y': my_head.y}
-        for nomeBloco, local in blocos.items():
-            if head_dict in local["coords"]:
-                local["pontos"] += 15
-                ondeEstou = nomeBloco
-                break
-        if ondeEstou:
-            vizinhos = vizinhosBlocos[ondeEstou]
-            for v in vizinhos:
-                blocos[v]["pontos"] += 15
-
     def calcularInimigos():
-        inimigos = state.board.snakes
-        for inimigo in inimigos:
-            if inimigo.id == state.you.id:
-                continue
+        if inimigo:
             for parte in inimigo.body:
                 p_dict = {'x': parte.x, 'y': parte.y}
                 for locais in blocos.values():
                     if p_dict in locais["coords"]:
-                        locais["pontos"] -= 50
+                        if not estouPerdendo:
+                            locais["pontos"] += 50
+                        else:
+                            locais["pontos"] -= 50
 
     def evitarInimigos():
         movimentosPossiveis = {
@@ -257,69 +175,84 @@ def get_move(state: GameState) -> MoveResponse:
             "left": {'x': my_head.x - 1, 'y': my_head.y},
             "right": {'x': my_head.x + 1, 'y': my_head.y}
         }
-        inimigos = state.board.snakes
-        for inimigo in inimigos:
-            if inimigo.id == state.you.id:
-                continue
-            for parte in inimigo.body:
+        
+        for cobra in state.board.snakes:
+            if cobra.id == state.you.id: continue
+            for parte in cobra.body:
                 for direcao, proximaPos in movimentosPossiveis.items():
                     if parte.x == proximaPos['x'] and parte.y == proximaPos['y']:
                         is_move_safe[direcao] = False
 
-        perigoCabeca = []
-        for inimigo in inimigos:
-            if inimigo.id == state.you.id:
-                continue
-            if len(inimigo.body) >= len(state.you.body):
-                cab = inimigo.body[0]
-                for direcao, proximaPos in movimentosPossiveis.items():
-                    if abs(cab.x - proximaPos['x']) + abs(cab.y - proximaPos['y']) == 1:
-                        perigoCabeca.append(direcao)
-        
-        sobram = []
-        for d, seg in is_move_safe.items():
-            if seg == True and d not in perigoCabeca:
-                sobram.append(d)
-                
-        if len(sobram) > 0:
-            for d in perigoCabeca:
-                is_move_safe[d] = False
+        if estouPerdendo and inimigo:
+            perigoCabeca = []
+            cab = inimigo.body[0]
+            for direcao, proximaPos in movimentosPossiveis.items():
+                if abs(cab.x - proximaPos['x']) + abs(cab.y - proximaPos['y']) == 1:
+                    perigoCabeca.append(direcao)
+            
+            sobram = [d for d, seg in is_move_safe.items() if seg and d not in perigoCabeca]
+            if len(sobram) > 0:
+                for d in perigoCabeca:
+                    is_move_safe[d] = False
 
     def evitarBordas():
+        if inimigo:
+            dist = abs(my_head.x - inimigo.body[0].x) + abs(my_head.y - inimigo.body[0].y)
+            if dist <= 3:
+                return
+
         movimentosPossiveis = {
             "up": {'x': my_head.x, 'y': my_head.y + 1},
             "down": {'x': my_head.x, 'y': my_head.y - 1},
             "left": {'x': my_head.x - 1, 'y': my_head.y},
             "right": {'x': my_head.x + 1, 'y': my_head.y}
         }
-        
         beiradas = []
         for direcao, pos in movimentosPossiveis.items():
-            if pos['x'] == 0 or pos['x'] == 10 or pos['y'] == 0 or pos['y'] == 10:
+            if pos['x'] == 0 or pos['x'] == board_width - 1 or pos['y'] == 0 or pos['y'] == board_height - 1:
                 beiradas.append(direcao)
                 
-        # Conta quantas saídas seguras sobram se a gente não for para a beirada
-        sobram = []
-        for direcao, segura in is_move_safe.items():
-            if segura == True:
-                if direcao not in beiradas:
-                    sobram.append(direcao)
+        sobram = [d for d, seg in is_move_safe.items() if seg and d not in beiradas]
         
-        # Só evita a borda se a gente tiver para onde fugir
         if len(sobram) > 0:
             for direcaoBorda in beiradas:
                 temMaca = False
                 posicaoBorda = movimentosPossiveis[direcaoBorda]
-                
-                # Checa se tem uma maçã especificamente nessa borda
                 for comida in listaComida:
                     if comida.x == posicaoBorda['x'] and comida.y == posicaoBorda['y']:
                         temMaca = True
                         break
                 
-                # Se for seguro, mas não tiver maçã, a gente finge que a parede é perigosa
-                if temMaca == False:
+                if not temMaca:
                     is_move_safe[direcaoBorda] = False
+
+    def fecharInimigo():
+        if not estouPerdendo and inimigo:
+            cabecaInimigo = inimigo.body[0]
+            pescocoInimigo = inimigo.body[1] if len(inimigo.body) > 1 else cabecaInimigo
+                
+            indoParaCima = cabecaInimigo.y > pescocoInimigo.y
+            indoParaBaixo = cabecaInimigo.y < pescocoInimigo.y
+            indoParaDireita = cabecaInimigo.x > pescocoInimigo.x
+            indoParaEsquerda = cabecaInimigo.x < pescocoInimigo.x
+            
+            if indoParaCima and abs(my_head.x - cabecaInimigo.x) == 1 and my_head.y > cabecaInimigo.y:
+                if my_head.x < cabecaInimigo.x and is_move_safe["right"] and temEspacoSeguro(my_head.x + 1, my_head.y): return "right"
+                if my_head.x > cabecaInimigo.x and is_move_safe["left"] and temEspacoSeguro(my_head.x - 1, my_head.y): return "left"
+                
+            if indoParaBaixo and abs(my_head.x - cabecaInimigo.x) == 1 and my_head.y < cabecaInimigo.y:
+                if my_head.x < cabecaInimigo.x and is_move_safe["right"] and temEspacoSeguro(my_head.x + 1, my_head.y): return "right"
+                if my_head.x > cabecaInimigo.x and is_move_safe["left"] and temEspacoSeguro(my_head.x - 1, my_head.y): return "left"
+                
+            if indoParaDireita and abs(my_head.y - cabecaInimigo.y) == 1 and my_head.x > cabecaInimigo.x:
+                if my_head.y < cabecaInimigo.y and is_move_safe["up"] and temEspacoSeguro(my_head.x, my_head.y + 1): return "up"
+                if my_head.y > cabecaInimigo.y and is_move_safe["down"] and temEspacoSeguro(my_head.x, my_head.y - 1): return "down"
+                
+            if indoParaEsquerda and abs(my_head.y - cabecaInimigo.y) == 1 and my_head.x < cabecaInimigo.x:
+                if my_head.y < cabecaInimigo.y and is_move_safe["up"] and temEspacoSeguro(my_head.x, my_head.y + 1): return "up"
+                if my_head.y > cabecaInimigo.y and is_move_safe["down"] and temEspacoSeguro(my_head.x, my_head.y - 1): return "down"
+                
+        return None
 
     def acharMelhorBloco():
         macasNoDestino = []
@@ -335,8 +268,7 @@ def get_move(state: GameState) -> MoveResponse:
                 maiorPontuacao = local["pontos"]
                 melhorBlocoNome = nomeBloco
 
-        if melhorBlocoNome:
-            coordsDoBloco = blocos[melhorBlocoNome]["coords"]
+        if melhorBlocoNome: coordsDoBloco = blocos[melhorBlocoNome]["coords"]
 
         head_dict = {'x': my_head.x, 'y': my_head.y}
         for nomeBloco, local in blocos.items():     
@@ -356,10 +288,10 @@ def get_move(state: GameState) -> MoveResponse:
         for comida in listaComida:
             c_dict = {'x': comida.x, 'y': comida.y}
             if c_dict in coordsDaFronteira:
-                if is_move_safe["right"] and my_head.x < comida.x: return "right"
-                if is_move_safe["left"] and my_head.x > comida.x: return "left"
-                if is_move_safe["up"] and my_head.y < comida.y: return "up"
-                if is_move_safe["down"] and my_head.y > comida.y: return "down"
+                if is_move_safe["right"] and my_head.x < comida.x and temEspacoSeguro(my_head.x + 1, my_head.y): return "right"
+                if is_move_safe["left"] and my_head.x > comida.x and temEspacoSeguro(my_head.x - 1, my_head.y): return "left"
+                if is_move_safe["up"] and my_head.y < comida.y and temEspacoSeguro(my_head.x, my_head.y + 1): return "up"
+                if is_move_safe["down"] and my_head.y > comida.y and temEspacoSeguro(my_head.x, my_head.y - 1): return "down"
 
         for comida in listaComida:
             c_dict = {'x': comida.x, 'y': comida.y}
@@ -368,114 +300,40 @@ def get_move(state: GameState) -> MoveResponse:
 
         if macasNoDestino:
             alvo = macasNoDestino[0]
-            if is_move_safe["right"] and my_head.x < alvo.x: return "right"
-            if is_move_safe["left"] and my_head.x > alvo.x: return "left"
-            if is_move_safe["up"] and my_head.y < alvo.y: return "up"
-            if is_move_safe["down"] and my_head.y > alvo.y: return "down"
-
-        return None
-
-    def inimigoNoMeuBloco():
-        blocoAtual = None
-        head_dict = {'x': my_head.x, 'y': my_head.y}
-        for nomeBloco, local in blocos.items():     
-            if head_dict in local['coords']:
-                blocoAtual = nomeBloco
-                break
-                
-        if blocoAtual:
-            coordsDoBloco = blocos[blocoAtual]["coords"]
-            inimigos = state.board.snakes
-            for inimigo in inimigos:
-                if inimigo.id != state.you.id:
-                    inimigoCabeca = {'x': inimigo.body[0].x, 'y': inimigo.body[0].y}
-                    if inimigoCabeca in coordsDoBloco:
-                        estado["emergencia"] = True
-                        return
-                        
-        estado["emergencia"] = False
-
-    def modoDefensivo():
-        if estado["emergencia"] and len(state.you.body) >= 4:
-            rabo = state.you.body[-1]
-            
-            if is_move_safe["right"] and my_head.x < rabo.x: return "right"
-            if is_move_safe["left"] and my_head.x > rabo.x: return "left"
-            if is_move_safe["up"] and my_head.y < rabo.y: return "up"
-            if is_move_safe["down"] and my_head.y > rabo.y: return "down"
-
-            for direcao, segura in is_move_safe.items():
-                if segura:
-                    return direcao
-                    
-        return None
-    def evitarColisaoFrente():
-        bateu = []
-        for numero in range(1, 4):
-            movimentosPossiveis = {
-                "up": {'x': my_head.x, 'y': my_head.y + numero},
-                "down": {'x': my_head.x, 'y': my_head.y - numero},
-                "left": {'x': my_head.x - numero, 'y': my_head.y},
-                "right": {'x': my_head.x + numero, 'y': my_head.y}
-            }
-            for direcao, pos in movimentosPossiveis.items():
-                if pos['x'] > 10 or pos['x'] < 0 or pos['y'] > 10 or pos['y'] < 0:
-                    if direcao not in bateu:
-                        bateu.append(direcao)
-                for cobra in state.board.snakes:
-                    for parte in cobra.body:
-                        if parte.x == pos['x'] and parte.y == pos['y']:
-                            if direcao not in bateu:
-                                bateu.append(direcao)
-
-        # só bloqueia se sobrar pelo menos uma saída
-        sobram = []
-        for direcao, segura in is_move_safe.items():
-            if segura and direcao not in bateu:
-                sobram.append(direcao)
-        if len(sobram) > 0:
-            for direcao in bateu:
-                is_move_safe[direcao] = False
-
-
-            numero+=1
-    def deuRuimKKK():
-        distancia = 9999
-        alvo = None
-
-        if desespero:
-            for comida in listaComida:
-                d = abs(comida.x - my_head.x) + abs(comida.y - my_head.y)
-                if d < distancia:
-                    distancia = d
-                    alvo = comida
-
-        if alvo:
-            if is_move_safe["right"] and my_head.x < alvo.x: return "right"
-            if is_move_safe["left"] and my_head.x > alvo.x: return "left"
-            if is_move_safe["up"] and my_head.y < alvo.y: return "up"
-            if is_move_safe["down"] and my_head.y > alvo.y: return "down"
+            if is_move_safe["right"] and my_head.x < alvo.x and temEspacoSeguro(my_head.x + 1, my_head.y): return "right"
+            if is_move_safe["left"] and my_head.x > alvo.x and temEspacoSeguro(my_head.x - 1, my_head.y): return "left"
+            if is_move_safe["up"] and my_head.y < alvo.y and temEspacoSeguro(my_head.x, my_head.y + 1): return "up"
+            if is_move_safe["down"] and my_head.y > alvo.y and temEspacoSeguro(my_head.x, my_head.y - 1): return "down"
 
         return None
 
     pontuarComida()
-    acharVizinho()
     calcularInimigos()
     evitarInimigos()
     evitarBordas()      
-    inimigoNoMeuBloco()
 
-    direcao_alvo = deuRuimKKK()
-    if not direcao_alvo:
-        direcao_alvo = modoDefensivo()
+    direcao_alvo = fecharInimigo()
+    
     if not direcao_alvo:
         direcao_alvo = acharMelhorBloco()
 
-    safe_moves = [direction for direction, safe in is_move_safe.items() if safe]
+    safe_moves = []
+    for d, seguro in is_move_safe.items():
+        if seguro:
+            nx, ny = my_head.x, my_head.y
+            if d == "up": ny += 1
+            elif d == "down": ny -= 1
+            elif d == "right": nx += 1
+            elif d == "left": nx -= 1
+            
+            if temEspacoSeguro(nx, ny):
+                safe_moves.append(d)
 
     if not safe_moves:
-        all_moves = ["up", "down", "left", "right"]
-        fallback = random.choice(all_moves)
+        safe_moves = [direction for direction, safe in is_move_safe.items() if safe]
+
+    if not safe_moves:
+        fallback = random.choice(["up", "down", "left", "right"])
         logger.info("MOVE %d: sem saída! emergência -> %s", state.turn, fallback)
         return MoveResponse(move=fallback)
 
