@@ -23,7 +23,7 @@ def info() -> dict:
         "color": "#E906B0",
         "head": "default",
         "tail": "default",
-        "version": "1.0.0",
+        "version": "2.0.0",
     }
 
 def start(state: GameState) -> None:
@@ -94,12 +94,6 @@ def get_move(state: GameState) -> MoveResponse:
         "b9": {"coords": [{'x': 8, 'y': 2}, {'x': 9, 'y': 2}, {'x': 10, 'y': 2},  {'x': 8, 'y': 1}, {'x': 9, 'y': 1}, {'x': 10, 'y': 1},  {'x': 8, 'y': 0}, {'x': 9, 'y': 0}, {'x': 10, 'y': 0}], "pontos": 0}
     }
 
-    vizinhosBlocos = {
-        "b1": ["b2", "b4"], "b2": ["b1", "b3", "b5"], "b3": ["b2", "b6"],
-        "b4": ["b1", "b5", "b7"], "b5": ["b2", "b4", "b6", "b8"], "b6": ["b3", "b5", "b9"],
-        "b7": ["b4", "b8"], "b8": ["b7", "b5", "b9"], "b9": ["b6", "b8"]
-    }
-
     fronteiras = {
         "b1_b2": {"coords": [{'x': 3, 'y': 10}, {'x': 3, 'y': 9}, {'x': 3, 'y': 8}]},
         "b1_b4": {"coords": [{'x': 0, 'y': 7}, {'x': 1, 'y': 7}, {'x': 2, 'y': 7}]},
@@ -160,38 +154,6 @@ def get_move(state: GameState) -> MoveResponse:
                 if c_dict in dados["coords"]:
                     dados["pontos"] += pontos
 
-    def calcularInimigos():
-        if inimigo is not None:
-            cabeca_inimigo = inimigo.body[0]
-            c_inimigo_dict = {'x': cabeca_inimigo.x, 'y': cabeca_inimigo.y}
-
-            fronteira_encontrada = None
-            for nomeFronteira, dadosFronteira in fronteiras.items():
-                if c_inimigo_dict in dadosFronteira["coords"]:
-                    fronteira_encontrada = nomeFronteira
-                    break
-
-            if fronteira_encontrada is not None:
-                partes = fronteira_encontrada.split('_')
-                blocoA = partes[0]
-                blocoB = partes[1]
-                
-                if not estouPerdendo:
-                    blocos[blocoA]["pontos"] += 80
-                    blocos[blocoB]["pontos"] += 80
-                else:
-                    blocos[blocoA]["pontos"] -= 80
-                    blocos[blocoB]["pontos"] -= 80
-            else:
-                for parte in inimigo.body:
-                    p_dict = {'x': parte.x, 'y': parte.y}
-                    for locais in blocos.values():
-                        if p_dict in locais["coords"]:
-                            if not estouPerdendo:
-                                locais["pontos"] += 50
-                            else:
-                                locais["pontos"] -= 50
-
     def evitarInimigos():
         movimentosPossiveis = {
             "up": {'x': my_head.x, 'y': my_head.y + 1},
@@ -251,62 +213,36 @@ def get_move(state: GameState) -> MoveResponse:
                     is_move_safe[direcaoBorda] = False
 
     def kamikasi():
-        if inimigo is not None and meuTamanho >= tamanhoInimigo + 2:
-            cabeca_inimigo = inimigo.body[0]
-            head_dict = {'x': my_head.x, 'y': my_head.y}
-            cabeca_inimigo_dict = {'x': cabeca_inimigo.x, 'y': cabeca_inimigo.y}
-            
-            meu_bloco = None
-            inimigo_bloco = None
-            
-            for nomeBloco, local in blocos.items():     
-                if head_dict in local['coords']:
-                    meu_bloco = nomeBloco
-                if cabeca_inimigo_dict in local['coords']:
-                    inimigo_bloco = nomeBloco
-                    
-            if meu_bloco and meu_bloco == inimigo_bloco:
-                macas_no_quadrante = 0
-                for comida in listaComida:
-                    c_dict = {'x': comida.x, 'y': comida.y}
-                    if c_dict in blocos[inimigo_bloco]["coords"]:
-                        macas_no_quadrante += 1
-                        
-                if macas_no_quadrante <= 1:
-                    blocos[inimigo_bloco]["pontos"] += 500
-                
-                alvo = cabeca_inimigo
-                if is_move_safe["right"] and my_head.x < alvo.x and temEspacoSeguro(my_head.x + 1, my_head.y): return "right"
-                if is_move_safe["left"] and my_head.x > alvo.x and temEspacoSeguro(my_head.x - 1, my_head.y): return "left"
-                if is_move_safe["up"] and my_head.y < alvo.y and temEspacoSeguro(my_head.x, my_head.y + 1): return "up"
-                if is_move_safe["down"] and my_head.y > alvo.y and temEspacoSeguro(my_head.x, my_head.y - 1): return "down"
-                
-        return None
-
-    def fecharInimigoSimples():
         if not estouPerdendo and inimigo is not None:
-            cabecaInimigo = inimigo.body[0]
+            cabeca_inimigo = inimigo.body[0]
+            distancia_cabecas = abs(my_head.x - cabeca_inimigo.x) + abs(my_head.y - cabeca_inimigo.y)
             
-            paraleloHorizontal = (abs(my_head.y - cabecaInimigo.y) <= 1) and (abs(my_head.x - cabecaInimigo.x) <= 2)
-            paraleloVertical = (abs(my_head.x - cabecaInimigo.x) <= 1) and (abs(my_head.y - cabecaInimigo.y) <= 2)
-            
-            if paraleloHorizontal or paraleloVertical:
-                direcoesPossiveis = []
-                if cabecaInimigo.x > my_head.x and is_move_safe["right"]: direcoesPossiveis.append("right")
-                if cabecaInimigo.x < my_head.x and is_move_safe["left"]: direcoesPossiveis.append("left")
-                if cabecaInimigo.y > my_head.y and is_move_safe["up"]: direcoesPossiveis.append("up")
-                if cabecaInimigo.y < my_head.y and is_move_safe["down"]: direcoesPossiveis.append("down")
+            if distancia_cabecas <= 3:
+                inimigo_pode_comer = False
+                for comida in listaComida:
+                    if abs(cabeca_inimigo.x - comida.x) + abs(cabeca_inimigo.y - comida.y) == 1:
+                        inimigo_pode_comer = True
+                        break
                 
-                for d in direcoesPossiveis:
-                    nx, ny = my_head.x, my_head.y
-                    if d == "up": ny += 1
-                    elif d == "down": ny -= 1
-                    elif d == "right": nx += 1
-                    elif d == "left": nx -= 1
+                pode_atacar = (meuTamanho >= tamanhoInimigo + 2) or (meuTamanho == tamanhoInimigo + 1 and not inimigo_pode_comer)
+                
+                if pode_atacar:
+                    direcoesPossiveis = []
+                    if cabeca_inimigo.x > my_head.x and is_move_safe["right"]: direcoesPossiveis.append("right")
+                    if cabeca_inimigo.x < my_head.x and is_move_safe["left"]: direcoesPossiveis.append("left")
+                    if cabeca_inimigo.y > my_head.y and is_move_safe["up"]: direcoesPossiveis.append("up")
+                    if cabeca_inimigo.y < my_head.y and is_move_safe["down"]: direcoesPossiveis.append("down")
                     
-                    if temEspacoSeguro(nx, ny, minimo=3):
-                        return d
+                    for d in direcoesPossiveis:
+                        nx, ny = my_head.x, my_head.y
+                        if d == "up": ny += 1
+                        elif d == "down": ny -= 1
+                        elif d == "right": nx += 1
+                        elif d == "left": nx -= 1
                         
+                        if temEspacoSeguro(nx, ny, minimo=meuTamanho):
+                            return d
+                            
         return None
 
     def acharMelhorBloco():
@@ -363,14 +299,10 @@ def get_move(state: GameState) -> MoveResponse:
         return None
 
     pontuarComida()
-    calcularInimigos()
     evitarInimigos()
     evitarBordas()      
 
     direcao_alvo = kamikasi()
-    
-    if not direcao_alvo:
-        direcao_alvo = fecharInimigoSimples()
     
     if not direcao_alvo:
         direcao_alvo = acharMelhorBloco()
